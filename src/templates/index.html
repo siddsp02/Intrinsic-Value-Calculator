@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instrinsic Value Calculator.</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+
+<body>
+    {% set skip_fields = ["ticker", "submit", "csrf_token"] %}
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <fieldset>
+            <p>{{ form.ticker.label() }} {{ form.ticker(onchange="updateFields()") }}</p>
+            {% for field in form %}
+            {% if field.name not in skip_fields %}
+            <p>
+                {{field.label()}} {{field}}
+            </p>
+            {% endif %}
+            {% endfor %}
+        </fieldset>
+        {{ form.submit() }}
+    </form>
+
+    <script>
+        function updateFields() {
+            let ticker = $("#ticker").val();
+            $.ajax({
+                type: "POST",
+                url: "/update_fields",
+                contentType: "application/json",
+                data: JSON.stringify({ ticker: ticker }),
+                success: (response) => {
+                    $.each(response, (k, v) => $("#" + k).val(v));
+                },
+                error: () => {
+                    console.error("Error while updating values.");
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
