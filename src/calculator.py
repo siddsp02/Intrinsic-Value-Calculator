@@ -1,4 +1,3 @@
-import bisect
 from dataclasses import dataclass
 from functools import cache, cached_property
 from itertools import accumulate, chain, count, repeat, starmap
@@ -7,17 +6,17 @@ from operator import mul
 import yfinance as yf
 from finvizfinance.quote import finvizfinance
 
+RISK_FREE_RATE = 0.041
+EXPECTED_MARKET_RETURN = 0.08
+MARKET_RISK_PREMIUM = EXPECTED_MARKET_RETURN - RISK_FREE_RATE
 DEFAULT_DISCOUNT_RATE = 0.10
 
 
 ticker_price_dict = {}
 
 
-def calc_discount_rate(beta: float) -> float:
-    beta_values = [0.8, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6]
-    discount_rates = [0.05, 0.06, 0.065, 0.07, 0.075, 0.08, 0.085, 0.09]
-    i = min(len(beta_values) - 1, bisect.bisect_left(beta_values, beta))
-    return discount_rates[i]
+def cost_of_equity(beta: float) -> float:
+    return round(RISK_FREE_RATE + beta * MARKET_RISK_PREMIUM, 3)
 
 
 def intrinsic_value(
@@ -71,7 +70,7 @@ class Stock:
         self.price
         try:
             self.beta = self._info["beta"]
-            self.discount_rate = calc_discount_rate(self.beta)
+            self.discount_rate = cost_of_equity(self.beta)
         except Exception:
             self.discount_rate = DEFAULT_DISCOUNT_RATE
 
