@@ -1,7 +1,5 @@
 # !usr/bin/env python3
 
-from pprint import pprint
-import traceback
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf import FlaskForm
 from werkzeug import Response
@@ -9,6 +7,7 @@ from wtforms import FloatField, IntegerField, StringField, SubmitField
 from wtforms.validators import DataRequired, Length
 
 import calculator
+from utils import parse_dict
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "a" * 32
@@ -66,30 +65,14 @@ def update_fields() -> Response:
 
 @app.route("/results", methods=["GET", "POST"])
 def results() -> str:
-
-    ticker = request.args.get("ticker", type=str)
-    growth_rate_1 = request.args.get("growth_rate_1", type=float)
-    growth_rate_2 = request.args.get("growth_rate_2", type=float)
-    growth_rate_3 = request.args.get("growth_rate_3", type=float)
-    free_cash_flow = request.args.get("free_cash_flow", type=int)
-    discount_rate = request.args.get("discount_rate", type=float)
-    total_cash = request.args.get("total_cash", type=int)
-    total_debt = request.args.get("total_debt", type=int)
-    shares_outstanding = request.args.get("shares_outstanding", type=int)
-
-    print(request.args.get("total_debt"), type(request.args.get("total_debt")))
-
-    growth_rates = [(growth_rate_1, 5), (growth_rate_2, 5), (growth_rate_3, 10)]
-
-    result = calculator.intrinsic_value(
-        free_cash_flow,  # type: ignore
-        total_debt,  # type: ignore
-        total_cash,  # type: ignore
-        shares_outstanding,  # type: ignore
-        growth_rates,  # type: ignore
-        discount_rate,  # type: ignore
-    )
-
+    data = parse_dict(request.args)
+    growth_rates = [
+        (data.pop("growth_rate_1"), 5),
+        (data.pop("growth_rate_2"), 5),
+        (data.pop("growth_rate_3"), 10),
+    ]
+    ticker = data.pop("ticker")
+    result = calculator.intrinsic_value(**data, growth_rates=growth_rates)  # type: ignore
     return f"""
         <p> Stock Price: ${calculator.ticker_price_dict[ticker]} </p>
         <p> Intrinsic value: ${result:.2f}</p>
