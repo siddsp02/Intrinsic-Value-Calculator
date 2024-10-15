@@ -35,19 +35,19 @@ def intrinsic_value(
     buyback_rate: float = 0,
 ) -> float:
     buyback_growth = 1 / (1 - buyback_rate)
+    discount_factor = 1 / (1 + discount_rate)
+
+    growth, present_value, total_discount = 1, 0, discount_factor
+
+    for growth_rate, years in growth_rates:
+        growth_rate = (1 + growth_rate) * buyback_growth
+        for _ in range(years):
+            growth *= growth_rate
+            present_value += free_cash_flow * growth * total_discount
+            total_discount *= discount_factor
 
     cash_per_share = total_cash / shares_outstanding
     debt_per_share = total_debt / shares_outstanding
-
-    discount_factors = accumulate(repeat(1 / (1 + discount_rate)), mul)
-    growth_rates = [
-        ((1 + growth_rate) * buyback_growth, years)
-        for growth_rate, years in growth_rates
-    ]
-    projected_cash_flows = accumulate(uncompress(growth_rates), mul)
-
-    discounted_values = map(mul, projected_cash_flows, discount_factors)
-    present_value = sum(free_cash_flow * x for x in discounted_values)
 
     return (present_value / shares_outstanding) - debt_per_share + cash_per_share
 
@@ -61,7 +61,7 @@ class Stock:
         self._fv_data = finvizfinance(self.ticker).ticker_fundament(raw=False)
 
         self.buyback_rate = 0.0
-        self.growth_rate = cast(float, self._fv_data["EPS next 5Y"])
+        self.growth_rate = self._fv_data["EPS next 5Y"]
 
         try:
             self.total_debt = self._yf_data.balance_sheet.loc["Total Debt"].iloc[0]
@@ -109,7 +109,7 @@ class Stock:
             self.total_debt,  # type: ignore
             self.total_cash,  # type: ignore
             self.shares_outstanding,
-            self.growth_rates,
+            self.growth_rates,  # type: ignore
             self.discount_rate,
             self.buyback_rate,
         )
