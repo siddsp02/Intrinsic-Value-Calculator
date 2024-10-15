@@ -7,7 +7,10 @@ from typing import cast
 import yfinance as yf
 from finvizfinance.quote import finvizfinance
 
-from utils import uncompress
+try:
+    from utils import uncompress
+except ImportError:
+    from src.utils import uncompress
 
 RISK_FREE_RATE = 0.041
 EXPECTED_MARKET_RETURN = 0.08

@@ -4,7 +4,7 @@ from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf import FlaskForm
 from werkzeug import Response
 from wtforms import FloatField, IntegerField, StringField, SubmitField
-from wtforms.validators import DataRequired, Length, InputRequired
+from wtforms.validators import DataRequired, InputRequired, Length
 
 import calculator
 from utils import parse_dict
