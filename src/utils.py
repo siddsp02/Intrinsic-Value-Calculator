@@ -1,4 +1,9 @@
-from typing import Any, Mapping
+from itertools import chain, repeat, starmap
+from typing import Any, Iterable, Mapping
+
+
+def uncompress(it: Iterable[tuple[Any, int]]) -> Iterable[Any]:
+    return chain.from_iterable(starmap(repeat, it))
 
 
 def parse_dict(dct: Mapping[str, str]) -> dict[str, int | float | str]:
