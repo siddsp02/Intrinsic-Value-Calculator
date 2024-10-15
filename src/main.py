@@ -4,7 +4,7 @@ from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf import FlaskForm
 from werkzeug import Response
 from wtforms import FloatField, IntegerField, StringField, SubmitField
-from wtforms.validators import DataRequired, Length
+from wtforms.validators import DataRequired, Length, InputRequired
 
 import calculator
 from utils import parse_dict
@@ -15,31 +15,38 @@ app.config["SECRET_KEY"] = "a" * 32
 
 class IntrinsicValueCalculator(FlaskForm):
     ticker = StringField("Ticker", validators=[DataRequired(), Length(min=1)])
-    free_cash_flow = IntegerField("Free Cash Flow", validators=[DataRequired()])
+    free_cash_flow = IntegerField("Free Cash Flow", validators=[InputRequired()])
     growth_rate_y_1_5 = FloatField(
         "Growth Rate Years 1-5",
-        validators=[DataRequired()],
+        validators=[InputRequired()],
         render_kw={"type": "number", "min": "-1", "step": "0.001"},
     )
     growth_rate_y_6_10 = FloatField(
         "Growth Rate Years 6-10",
-        validators=[DataRequired()],
+        validators=[InputRequired()],
         render_kw={"type": "number", "min": "-1", "step": "0.001"},
     )
     growth_rate_y_11_20 = FloatField(
         "Growth Rate Years 11-20",
-        validators=[DataRequired()],
+        validators=[InputRequired()],
         render_kw={"type": "number", "min": "-1", "step": "0.001"},
     )
     discount_rate = FloatField(
         "Discount Rate",
         default=0.12,
+        validators=[InputRequired()],
         render_kw={"type": "number", "min": "-1", "step": "0.001"},
     )
     total_cash = IntegerField(
-        "Cash and Short Term Investments", validators=[DataRequired()]
+        "Cash and Short Term Investments", validators=[InputRequired()]
     )
-    total_debt = IntegerField("Total Debt", validators=[DataRequired()])
+    total_debt = IntegerField("Total Debt", validators=[InputRequired()])
+    buyback_rate = FloatField(
+        "Buyback Rate",
+        default=0.0,
+        validators=[InputRequired()],
+        render_kw={"type": "number", "step": "0.001"},
+    )
     shares_outstanding = IntegerField("Shares Outstanding", validators=[DataRequired()])
     submit = SubmitField("Calculate Intrinsic Value")
 
@@ -58,6 +65,7 @@ def update_fields() -> Response:
             "discount_rate": stock.discount_rate,
             "total_cash": stock.total_cash,
             "total_debt": stock.total_debt,
+            "buyback_rate": stock.buyback_rate,
             "shares_outstanding": stock.shares_outstanding,
         }
     )
@@ -95,6 +103,7 @@ def main() -> Response | str:
                 total_cash=form.total_cash.data,
                 total_debt=form.total_debt.data,
                 shares_outstanding=form.shares_outstanding.data,
+                buyback_rate=form.buyback_rate.data,
             )
         )
     return render_template("index.html", form=form)
