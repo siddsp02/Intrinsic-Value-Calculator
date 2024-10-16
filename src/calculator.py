@@ -20,7 +20,6 @@ def cost_of_equity(beta: float) -> float:
     return RISK_FREE_RATE + beta * MARKET_RISK_PREMIUM
 
 
-@cache
 @dataclass
 class Stock:
     ticker: str = ""
@@ -91,8 +90,7 @@ class Stock:
 
     @property
     def projected_cash_flows(self) -> list[float]:
-        discount, growth, cash_flow = 1, 1, 0
-        values = []
+        discount, growth, cash_flow, values = 1, 1, 0, []
         for growth_rate in uncompress(self.growth_rates):
             growth_rate = (1 + growth_rate) * self.buyback_growth
             growth *= growth_rate

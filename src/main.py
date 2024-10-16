@@ -5,6 +5,8 @@ from flask_wtf import FlaskForm
 from werkzeug import Response
 from wtforms import FloatField, IntegerField, StringField, SubmitField
 from wtforms.validators import DataRequired, InputRequired, Length
+import plotly.graph_objects as go
+import plotly.io as pio
 
 import calculator
 from utils import parse_dict
@@ -81,12 +83,27 @@ def results() -> str:
         (round(data["growth_rate_2"], 3), 5),  # type: ignore
         (round(data["growth_rate_3"], 3), 10),  # type: ignore
     ]
+    stock.buyback_rate = data["buyback_rate"]  # type: ignore
     result = stock.intrinsic_value()
-
-    return f"""
-        <p> Stock Price: ${stock.price} </p>
-        <p> Intrinsic value: ${result:.2f}</p>
-    """
+    fig = go.Figure(
+        data=[go.Bar(x=list(range(1, 21)), y=stock.projected_cash_flows)],
+    )
+    fig.update_layout(
+        width=700,
+        height=500,
+        template="seaborn",
+    )
+    return render_template(
+        "results.html",
+        stock=stock,
+        result=result,
+        round=round,
+        plot=pio.to_html(
+            fig,
+            full_html=False,
+            config={"displayModeBar": False},
+        ),
+    )
 
 
 @app.route("/", methods=["GET", "POST"])
