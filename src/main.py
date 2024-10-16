@@ -74,15 +74,17 @@ def update_fields() -> Response:
 @app.route("/results", methods=["GET", "POST"])
 def results() -> str:
     data = parse_dict(request.args)
-    growth_rates = [
-        (data.pop("growth_rate_1"), 5),
-        (data.pop("growth_rate_2"), 5),
-        (data.pop("growth_rate_3"), 10),
+    stock = calculator.Stock(data["ticker"])  # type: ignore
+    stock.growth_rate = data["growth_rate_1"]  # type: ignore
+    stock.growth_rates = [
+        (round(data["growth_rate_1"], 3), 5),  # type: ignore
+        (round(data["growth_rate_2"], 3), 5),  # type: ignore
+        (round(data["growth_rate_3"], 3), 10),  # type: ignore
     ]
-    ticker = data.pop("ticker")
-    result = calculator.intrinsic_value(**data, growth_rates=growth_rates)  # type: ignore
+    result = stock.intrinsic_value()
+
     return f"""
-        <p> Stock Price: ${calculator.ticker_price_dict[ticker]} </p>
+        <p> Stock Price: ${stock.price} </p>
         <p> Intrinsic value: ${result:.2f}</p>
     """
 
