@@ -1,18 +1,25 @@
 # !usr/bin/env python3
 
+
+import math
+import plotly.graph_objects as go
+import plotly.io as pio
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf import FlaskForm
+from plotly.subplots import make_subplots
 from werkzeug import Response
 from wtforms import FloatField, IntegerField, StringField, SubmitField
 from wtforms.validators import DataRequired, InputRequired, Length
-import plotly.graph_objects as go
-import plotly.io as pio
 
-import calculator
-from utils import parse_dict
+try:
+    from calculator import DEFAULT_DISCOUNT_RATE, Stock
+    from utils import parse_dict
+except ImportError:
+    from src.calculator import DEFAULT_DISCOUNT_RATE, Stock
+    from src.utils import parse_dict
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "a" * 32
+app.config["SECRET_KEY"] = "secret"
 
 
 class IntrinsicValueCalculator(FlaskForm):
@@ -35,7 +42,7 @@ class IntrinsicValueCalculator(FlaskForm):
     )
     discount_rate = FloatField(
         "Discount Rate",
-        default=0.12,
+        default=DEFAULT_DISCOUNT_RATE,
         validators=[InputRequired()],
         render_kw={"type": "number", "min": "-1", "step": "0.001"},
     )
@@ -57,7 +64,7 @@ class IntrinsicValueCalculator(FlaskForm):
 def update_fields() -> Response:
     data = request.json
     ticker = data.get("ticker", "")  # type: ignore
-    stock = calculator.Stock(ticker)
+    stock = Stock(ticker)
     return jsonify(
         {
             "growth_rate_y_1_5": round(stock.growth_rate, 3),
@@ -73,36 +80,50 @@ def update_fields() -> Response:
     )
 
 
-@app.route("/results", methods=["GET", "POST"])
+@app.route("/intrinsic-value-calculator", methods=["GET", "POST"])
 def results() -> str:
     data = parse_dict(request.args)
-    stock = calculator.Stock(data["ticker"])  # type: ignore
+    stock = Stock(data["ticker"])  # type: ignore
+
+    stock.total_cash = data["total_cash"]
+    stock.total_debt = data["total_debt"]
     stock.growth_rate = data["growth_rate_1"]  # type: ignore
-    stock.growth_rates = [
-        (round(data["growth_rate_1"], 3), 5),  # type: ignore
-        (round(data["growth_rate_2"], 3), 5),  # type: ignore
-        (round(data["growth_rate_3"], 3), 10),  # type: ignore
-    ]
+    stock.free_cash_flow = data["free_cash_flow"]  # type: ignore
+    stock.discount_rate = data["discount_rate"]  # type: ignore
+    stock.shares_outstanding = data["shares_outstanding"]
     stock.buyback_rate = data["buyback_rate"]  # type: ignore
+    stock.growth_rates = [  # type: ignore
+        (data["growth_rate_1"], 5),
+        (data["growth_rate_2"], 5),
+        (data["growth_rate_3"], 10),
+    ]
+
     result = stock.intrinsic_value()
-    fig = go.Figure(
-        data=[go.Bar(x=list(range(1, 21)), y=stock.projected_cash_flows)],
+    premium = math.inf if result == 0 else (stock.price / result) - 1
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    x_axis = list(range(1, 21))
+
+    fig.add_trace(
+        go.Bar(
+            x=x_axis,
+            y=stock.projected_cash_flows,
+            name="projected cash flow",
+        ),
+        secondary_y=False,
     )
+
     fig.update_layout(
-        width=700,
-        height=500,
-        template="seaborn",
+        width=700, height=500, template="seaborn", title="Projected Cash Flows"
     )
+
     return render_template(
         "results.html",
         stock=stock,
         result=result,
         round=round,
-        plot=pio.to_html(
-            fig,
-            full_html=False,
-            config={"displayModeBar": False},
-        ),
+        premium=premium,
+        plot=pio.to_html(fig, full_html=False, config={"displayModeBar": False}),
     )
 
 
