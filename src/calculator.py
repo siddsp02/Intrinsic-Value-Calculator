@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import IntEnum
 from functools import cached_property
 from itertools import accumulate
 from operator import mul
@@ -15,8 +16,16 @@ try:
 except ImportError:
     from src.utils import uncompress
 
+
+class EvaluationMethod(IntEnum):
+    DISCOUNTED_CASH_FLOW = 0
+    BENJAMIN_GRAHAM = 1
+    BENJAMIN_GRAHAM_REVISED = 2
+
+
 RISK_FREE_RATE = 0.041
 EXPECTED_MARKET_RETURN = 0.08
+AVERAGE_AAA_CORPORATE_BOND_YIELD = 0.044
 MARKET_RISK_PREMIUM = EXPECTED_MARKET_RETURN - RISK_FREE_RATE
 DEFAULT_DISCOUNT_RATE = 0.10
 
@@ -49,6 +58,17 @@ def get_default(
     return default
 
 
+def graham_formula(
+    eps: float,
+    g: float,
+    coeff: float,
+    base: float,
+    avg_yield: float = AVERAGE_AAA_CORPORATE_BOND_YIELD,
+    curr_yield: float = RISK_FREE_RATE,
+) -> float:
+    return (eps * (base + coeff * 100 * g) * 100 * avg_yield) / (100 * curr_yield)
+
+
 @dataclass
 class Stock:
     ticker: str = ""
@@ -72,6 +92,12 @@ class Stock:
                 finvizfinance(self.ticker)
                 .ticker_fundament(raw=False)
                 .get("EPS next 5Y", 0.0)
+            )  # type: ignore
+
+            self.eps: float = (
+                finvizfinance(self.ticker)
+                .ticker_fundament(raw=False)
+                .get("EPS (ttm)", 0.0)
             )  # type: ignore
 
             if self.growth_rate is None:
@@ -199,12 +225,27 @@ class Stock:
             values.append(cash_flow)
         return values
 
-    def intrinsic_value(self) -> float:
-        present_value = self.projected_cash_flows[-1]
-        share_value = present_value / self.shares_outstanding
-        result = share_value - self.debt_per_share + self.cash_per_share
-        return max(result, 0)
+    def intrinsic_value(
+        self,
+        method: EvaluationMethod = EvaluationMethod.DISCOUNTED_CASH_FLOW,
+    ) -> float:
+        """Calculates the intrinsic value of a stock using a specified method.
+        By default, stocks are evaluated using the Discounted Cash Flow (DCF)
+        model.
+        """
+        match method:
+            case EvaluationMethod.DISCOUNTED_CASH_FLOW:
+                present_value = self.projected_cash_flows[-1]
+                share_value = present_value / self.shares_outstanding
+                result = share_value - self.debt_per_share + self.cash_per_share
+                return max(result, 0)
+            case EvaluationMethod.BENJAMIN_GRAHAM:
+                return graham_formula(self.eps, self.growth_rate, coeff=2, base=8.5)
+            case EvaluationMethod.BENJAMIN_GRAHAM_REVISED:
+                return graham_formula(self.eps, self.growth_rate, coeff=1, base=7)
+            case _:
+                raise ValueError(f"<{method}> is not a valid evaluation method.")
 
 
 if __name__ == "__main__":
-    print(Stock("DUOL").roce)
+    stock = Stock("GOOGL")

@@ -2,6 +2,8 @@
 
 
 import math
+
+import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
 from flask import Flask, jsonify, redirect, render_template, request, url_for
@@ -80,38 +82,34 @@ def update_fields() -> Response:
     )
 
 
-@app.route("/intrinsic-value-calculator", methods=["GET", "POST"])
-def results() -> str:
-    data = parse_dict(request.args)
-    stock = Stock(data["ticker"])  # type: ignore
-
+def update_stock_values_from_data(data: dict, stock: Stock) -> None:
     stock.total_cash = data["total_cash"]
     stock.total_debt = data["total_debt"]
-    stock.growth_rate = data["growth_rate_1"]  # type: ignore
-    stock.free_cash_flow = data["free_cash_flow"]  # type: ignore
-    stock.discount_rate = data["discount_rate"]  # type: ignore
+    stock.growth_rate = data["growth_rate_1"]
+    stock.free_cash_flow = data["free_cash_flow"]
+    stock.discount_rate = data["discount_rate"]
     stock.shares_outstanding = data["shares_outstanding"]
-    stock.buyback_rate = data["buyback_rate"]  # type: ignore
-    stock.growth_rates = [  # type: ignore
+    stock.buyback_rate = data["buyback_rate"]
+    stock.growth_rates = [
         (data["growth_rate_1"], 5),
         (data["growth_rate_2"], 5),
         (data["growth_rate_3"], 10),
     ]
 
+
+@app.route("/intrinsic-value-calculator", methods=["GET", "POST"])
+def results() -> str:
+    data = parse_dict(request.args)
+    stock = Stock(data["ticker"])  # type: ignore
+
+    update_stock_values_from_data(data, stock)
+
     result = stock.intrinsic_value()
     premium = math.inf if result == 0 else (stock.price / result) - 1
 
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
     x_axis = list(range(1, 21))
 
-    fig.add_trace(
-        go.Bar(
-            x=x_axis,
-            y=stock.projected_cash_flows,
-            name="projected cash flow",
-        ),
-        secondary_y=False,
-    )
+    fig = px.bar(x=x_axis, y=stock.projected_cash_flows)
 
     fig.update_layout(
         width=700, height=500, template="seaborn", title="Projected Cash Flows"
