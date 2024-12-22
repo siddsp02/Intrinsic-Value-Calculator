@@ -14,8 +14,8 @@
     </div>
     <p> Stock Ticker: {{ stock.ticker }} </p>
     <p> Stock Price: ${{ stock.price }} </p>
-    <p> Intrinsic value: ${{ round(result, 2) }}</p>
-    <p> Premium: {{ round(premium*100, 2) }}%</p>
+    <p> Intrinsic value: ${{ round(stock.intrinsic_value(), 2) }}</p>
+    <p> Premium: {{ round(stock.get_premium()*100, 2) }}%</p>
 </body>
 
 </html>

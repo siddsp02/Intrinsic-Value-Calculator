@@ -1,15 +1,15 @@
+import math
 from dataclasses import dataclass
 from enum import IntEnum
 from functools import cached_property
 from itertools import accumulate
 from operator import mul
-from pprint import pprint
 from typing import Any
 
-from pandas import DataFrame
-import yfinance as yf
 import pandas as pd
+import yfinance as yf
 from finvizfinance.quote import finvizfinance
+from pandas import DataFrame
 
 try:
     from utils import uncompress
@@ -23,12 +23,11 @@ class EvaluationMethod(IntEnum):
     BENJAMIN_GRAHAM_REVISED = 2
 
 
-RISK_FREE_RATE = 0.041
+RISK_FREE_RATE = 0.044
 EXPECTED_MARKET_RETURN = 0.08
 AVERAGE_AAA_CORPORATE_BOND_YIELD = 0.044
 MARKET_RISK_PREMIUM = EXPECTED_MARKET_RETURN - RISK_FREE_RATE
 DEFAULT_DISCOUNT_RATE = 0.10
-
 DEFAULT_GROWTH_RATE = 0.10
 
 
@@ -224,6 +223,12 @@ class Stock:
             cash_flow += self.free_cash_flow * growth * discount
             values.append(cash_flow)
         return values
+
+    def get_premium(
+        self, method: EvaluationMethod = EvaluationMethod.DISCOUNTED_CASH_FLOW
+    ) -> float:
+        value = self.intrinsic_value(method)
+        return math.inf if value == 0 else (self.price / value) - 1
 
     def intrinsic_value(
         self,
