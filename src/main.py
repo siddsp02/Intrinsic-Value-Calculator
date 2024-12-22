@@ -1,14 +1,10 @@
 # !usr/bin/env python3
 
 
-import math
-
 import plotly.express as px
-import plotly.graph_objects as go
 import plotly.io as pio
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf import FlaskForm
-from plotly.subplots import make_subplots
 from werkzeug import Response
 from wtforms import FloatField, IntegerField, StringField, SubmitField
 from wtforms.validators import DataRequired, InputRequired, Length
@@ -27,17 +23,17 @@ app.config["SECRET_KEY"] = "secret"
 class IntrinsicValueCalculator(FlaskForm):
     ticker = StringField("Ticker", validators=[DataRequired(), Length(min=1)])
     free_cash_flow = IntegerField("Free Cash Flow", validators=[InputRequired()])
-    growth_rate_y_1_5 = FloatField(
+    growth_rate_1 = FloatField(
         "Growth Rate Years 1-5",
         validators=[InputRequired()],
         render_kw={"type": "number", "min": "-1", "step": "0.001"},
     )
-    growth_rate_y_6_10 = FloatField(
+    growth_rate_2 = FloatField(
         "Growth Rate Years 6-10",
         validators=[InputRequired()],
         render_kw={"type": "number", "min": "-1", "step": "0.001"},
     )
-    growth_rate_y_11_20 = FloatField(
+    growth_rate_3 = FloatField(
         "Growth Rate Years 11-20",
         validators=[InputRequired()],
         render_kw={"type": "number", "min": "-1", "step": "0.001"},
@@ -69,9 +65,9 @@ def update_fields() -> Response:
     stock = Stock(ticker)
     return jsonify(
         {
-            "growth_rate_y_1_5": round(stock.growth_rate, 3),
-            "growth_rate_y_6_10": round(stock.growth_rate / 2, 3),
-            "growth_rate_y_11_20": round(stock.growth_rate / 4, 3),
+            "growth_rate_1": round(stock.growth_rate, 3),
+            "growth_rate_2": round(stock.growth_rate / 2, 3),
+            "growth_rate_3": round(stock.growth_rate / 4, 3),
             "free_cash_flow": stock.free_cash_flow,
             "discount_rate": stock.discount_rate,
             "total_cash": stock.total_cash,
@@ -104,24 +100,20 @@ def results() -> str:
 
     update_stock_values_from_data(data, stock)
 
-    result = stock.intrinsic_value()
-    premium = math.inf if result == 0 else (stock.price / result) - 1
-
-    x_axis = list(range(1, 21))
-
-    fig = px.bar(x=x_axis, y=stock.projected_cash_flows)
-
-    fig.update_layout(
+    fig_1 = px.bar(x=list(range(1, 21)), y=stock.projected_cash_flows)
+    fig_1.update_layout(
         width=700, height=500, template="seaborn", title="Projected Cash Flows"
     )
+    plot_config = {
+        "full_html": False,
+        "config": {"displayModeBar": False},
+    }
 
     return render_template(
         "results.html",
         stock=stock,
-        result=result,
         round=round,
-        premium=premium,
-        plot=pio.to_html(fig, full_html=False, config={"displayModeBar": False}),
+        plot=pio.to_html(fig_1, **plot_config),
     )
 
 
@@ -133,9 +125,9 @@ def main() -> Response | str:
             url_for(
                 "results",
                 ticker=form.ticker.data,
-                growth_rate_1=form.growth_rate_y_1_5.data,
-                growth_rate_2=form.growth_rate_y_6_10.data,
-                growth_rate_3=form.growth_rate_y_11_20.data,
+                growth_rate_1=form.growth_rate_1.data,
+                growth_rate_2=form.growth_rate_2.data,
+                growth_rate_3=form.growth_rate_3.data,
                 free_cash_flow=form.free_cash_flow.data,
                 discount_rate=form.discount_rate.data,
                 total_cash=form.total_cash.data,
