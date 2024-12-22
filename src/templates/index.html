@@ -26,19 +26,15 @@
     </form>
 
     <script>
-        function updateFields() {
+        let updateFields = () => {
             let ticker = $("#ticker").val();
             $.ajax({
                 type: "POST",
                 url: "/update_fields",
                 contentType: "application/json",
                 data: JSON.stringify({ ticker: ticker }),
-                success: (response) => {
-                    $.each(response, (k, v) => $("#" + k).val(v));
-                },
-                error: () => {
-                    console.error("Error while updating values.");
-                }
+                success: (response) => $.each(response, (k, v) => $("#" + k).val(v)),
+                error: () => console.error("Error while updating values.")
             });
         }
     </script>
