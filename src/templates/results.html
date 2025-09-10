@@ -10,8 +10,11 @@
 
 <body>
     <div style="margin-left: 0 auto">
-        {{ plot|safe }}
+        {{ plot_1 | safe }}
     </div>
+    {# <div style="margin-left: 0 auto">
+        {{ plot_2 | safe }}
+    </div> #}
     <p> Stock Ticker: {{ stock.ticker }} </p>
     <p> Stock Price: ${{ stock.price }} </p>
     <p> Intrinsic value: ${{ round(stock.intrinsic_value(), 2) }}</p>

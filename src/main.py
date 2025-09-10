@@ -104,6 +104,14 @@ def results() -> str:
     fig_1.update_layout(
         width=700, height=500, template="seaborn", title="Projected Cash Flows"
     )
+
+    # fcf_hist = stock.fcf_history()
+
+    # fig_2 = px.bar(x=fcf_hist.keys(), y=fcf_hist.values())
+    # fig_2.update_layout(
+    #     width=700, height=500, template="seaborn", title="Free Cash Flow History"
+    # )
+
     plot_config = {
         "full_html": False,
         "config": {"displayModeBar": False},
@@ -113,7 +121,8 @@ def results() -> str:
         "results.html",
         stock=stock,
         round=round,
-        plot=pio.to_html(fig_1, **plot_config),
+        plot_1=pio.to_html(fig_1, **plot_config),
+        # plot_2=pio.to_html(fig_2, **plot_config),
     )
 
 

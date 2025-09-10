@@ -1,14 +1,17 @@
+from datetime import datetime
 import math
 from dataclasses import dataclass
 from enum import IntEnum
 from functools import cached_property
 from itertools import accumulate
 from operator import mul
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
+from pprint import pprint
 import yfinance as yf
-from finvizfinance.quote import finvizfinance
+
+# from finvizfinance.quote import finvizfinance
 from pandas import DataFrame
 
 try:
@@ -17,15 +20,8 @@ except ImportError:
     from src.utils import uncompress
 
 
-class EvaluationMethod(IntEnum):
-    DISCOUNTED_CASH_FLOW = 0
-    BENJAMIN_GRAHAM = 1
-    BENJAMIN_GRAHAM_REVISED = 2
-
-
-RISK_FREE_RATE = 0.044
+RISK_FREE_RATE = 0.045
 EXPECTED_MARKET_RETURN = 0.08
-AVERAGE_AAA_CORPORATE_BOND_YIELD = 0.044
 MARKET_RISK_PREMIUM = EXPECTED_MARKET_RETURN - RISK_FREE_RATE
 DEFAULT_DISCOUNT_RATE = 0.10
 DEFAULT_GROWTH_RATE = 0.10
@@ -57,17 +53,6 @@ def get_default(
     return default
 
 
-def graham_formula(
-    eps: float,
-    g: float,
-    coeff: float,
-    base: float,
-    avg_yield: float = AVERAGE_AAA_CORPORATE_BOND_YIELD,
-    curr_yield: float = RISK_FREE_RATE,
-) -> float:
-    return (eps * (base + coeff * 100 * g) * 100 * avg_yield) / (100 * curr_yield)
-
-
 @dataclass
 class Stock:
     ticker: str = ""
@@ -86,18 +71,7 @@ class Stock:
         else:
             info = self._yf_data.info
             self.buyback_rate = 0.0
-
-            self.growth_rate: float = (
-                finvizfinance(self.ticker)
-                .ticker_fundament(raw=False)
-                .get("EPS next 5Y", 0.0)
-            )  # type: ignore
-
-            self.eps: float = (
-                finvizfinance(self.ticker)
-                .ticker_fundament(raw=False)
-                .get("EPS (ttm)", 0.0)
-            )  # type: ignore
+            self.growth_rate = 0.0
 
             if self.growth_rate is None:
                 self.growth_rate = DEFAULT_GROWTH_RATE
@@ -128,6 +102,15 @@ class Stock:
     @property
     def free_cash_flow(self) -> float:
         return self._free_cash_flow
+
+    def fcf_history(
+        self, period: Literal["annual", "quarterly"] = "quarterly"
+    ) -> dict[datetime, float]:
+        if period == "quarterly":
+            fcf = self._yf_data.quarterly_cash_flow.iloc[0, :]
+            return {k.to_pydatetime(): v for k, v in fcf.to_dict().items()}
+        else:
+            raise ValueError
 
     @free_cash_flow.setter
     def free_cash_flow(self, value: float) -> None:
@@ -224,33 +207,20 @@ class Stock:
             values.append(cash_flow)
         return values
 
-    def get_premium(
-        self, method: EvaluationMethod = EvaluationMethod.DISCOUNTED_CASH_FLOW
-    ) -> float:
-        value = self.intrinsic_value(method)
+    def get_premium(self) -> float:
+        value = self.intrinsic_value()
         return math.inf if value == 0 else (self.price / value) - 1
 
-    def intrinsic_value(
-        self,
-        method: EvaluationMethod = EvaluationMethod.DISCOUNTED_CASH_FLOW,
-    ) -> float:
+    def intrinsic_value(self) -> float:
         """Calculates the intrinsic value of a stock using a specified method.
         By default, stocks are evaluated using the Discounted Cash Flow (DCF)
         model.
         """
-        match method:
-            case EvaluationMethod.DISCOUNTED_CASH_FLOW:
-                present_value = self.projected_cash_flows[-1]
-                share_value = present_value / self.shares_outstanding
-                result = share_value - self.debt_per_share + self.cash_per_share
-                return max(result, 0)
-            case EvaluationMethod.BENJAMIN_GRAHAM:
-                return graham_formula(self.eps, self.growth_rate, coeff=2, base=8.5)
-            case EvaluationMethod.BENJAMIN_GRAHAM_REVISED:
-                return graham_formula(self.eps, self.growth_rate, coeff=1, base=7)
-            case _:
-                raise ValueError(f"<{method}> is not a valid evaluation method.")
+        present_value = self.projected_cash_flows[-1]
+        share_value = present_value / self.shares_outstanding
+        result = share_value - self.debt_per_share + self.cash_per_share
+        return result
 
 
 if __name__ == "__main__":
-    stock = Stock("GOOGL")
+    stock = Stock("googl")
